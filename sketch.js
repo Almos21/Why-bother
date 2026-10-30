@@ -1017,7 +1017,7 @@ function dibujarImagenes(m, ctx) {
 function dibujarGrisSobreImagen(m, ctx) {
   const g = m.gris;
   if (g.estado !== 'final' || g.mezcla <= 0) return;
-  const f = g.fin, base = [215, 215, 222], k = f.colorMix || 0;
+  const C = CONFIG, f = g.fin, base = [215, 215, 222], k = f.colorMix || 0;
   const rr = g.r * g.escala;
   if (rr < 0.05) return;
   const col = base.map((v, i) => Math.round(v + (f.col[i] - v) * k));
