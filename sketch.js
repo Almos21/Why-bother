@@ -52,6 +52,8 @@ const CONFIG = {
   ASIMILA_VIAJE: 3,         // segundos que tarda en llegar al píxel elegido
   ASIMILA_DURACION: 8,      // segundos que tarda en tomar su color y encogerse del todo
   ASIMILA_CENTRO: 0.3,      // cuánto prefiere el centro al elegir el píxel (menor = más pegado al centro; 5 = lo ignora)
+  ASIMILA_LUM_MIN: 0.15,    // el píxel elegido no puede ser más oscuro que esto (0 = negro, 1 = blanco)
+  ASIMILA_LUM_MAX: 0.85,    // ni más claro que esto
 
   // ---------- LUZ DE LA GRIS ----------
   LUZ_POR_AZUL: 0.78,       // cada azul comida multiplica su luz por esto (1 = nunca se apaga)
@@ -342,17 +344,27 @@ function elegirPixel(idx) {
     c.drawImage(o.img, 0, 0, W, H);
     const d = c.getImageData(0, 0, W, H).data;
     const sg = Math.max(0.05, C.ASIMILA_CENTRO);
-    let mejor = -1, bx = 0.5, by = 0.5, bc = reserva.rgb;
+    // Sorteo ponderado: cualquier píxel que no sea casi negro ni casi blanco puede salir,
+    // y los más cercanos al centro tienen más probabilidad.
+    const pesos = new Float32Array(W * H);
+    let total = 0;
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const i = (y * W + x) * 4, r = d[i], g = d[i + 1], b = d[i + 2];
-        const croma = (Math.max(r, g, b) - Math.min(r, g, b)) / 255;   // 0 en negro, blanco y grises
+        const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+        if (lum < C.ASIMILA_LUM_MIN || lum > C.ASIMILA_LUM_MAX) continue;   // descarta negro y blanco
         const dx = (x + 0.5) / W - 0.5, dy = (y + 0.5) / H - 0.5;
-        const peso = 0.2 + 0.8 * Math.exp(-(dx * dx + dy * dy) / (2 * sg * sg));
-        const s = croma * peso;
-        if (s > mejor) { mejor = s; bx = (x + 0.5) / W; by = (y + 0.5) / H; bc = [r, g, b]; }
+        const w = Math.exp(-(dx * dx + dy * dy) / (2 * sg * sg)) + 0.02;
+        pesos[y * W + x] = w;
+        total += w;
       }
     }
+    if (total <= 0) return reserva;
+    let r0 = Math.random() * total, k = 0;
+    for (; k < pesos.length - 1; k++) { r0 -= pesos[k]; if (r0 <= 0) break; }
+    while (pesos[k] === 0 && k > 0) k--;     // por si el sorteo cae en el último y ese no es válido
+    const px = k % W, py = Math.floor(k / W), j = k * 4;
+    const bx = (px + 0.5) / W, by = (py + 0.5) / H, bc = [d[j], d[j + 1], d[j + 2]];
     return { nx: bx, ny: by, rgb: bc };
   } catch (e) {
     console.warn('[obra] no se pudo leer la imagen para elegir el píxel (¿abierta como file://?). Se usa un color de reserva.', e);
