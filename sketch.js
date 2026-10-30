@@ -54,8 +54,14 @@ const CONFIG = {
   ASIMILA_CENTRO: 0.3,      // cuánto prefiere el centro al elegir el píxel (menor = más pegado al centro; 5 = lo ignora)
 
   // ---------- LUZ DE LA GRIS ----------
-  LUZ_POR_AZUL: 0.88,       // cada azul comida multiplica su luz por esto (1 = nunca se apaga)
+  LUZ_POR_AZUL: 0.78,       // cada azul comida multiplica su luz por esto (1 = nunca se apaga)
   LUZ_MIN: 0.08,            // nunca baja de aquí
+  LUZ_PARPADEO: 0.65,       // al comer una azul se apaga de golpe este % y se recupera (0 = sin parpadeo)
+  LUZ_PARPADEO_SEG: 1.0,    // segundos que tarda en recuperarse de ese parpadeo
+
+  // ---------- FONDO DIFUMINADO (solo el fondo, nunca partículas ni imagen) ----------
+  FONDO_OPACIDAD: 0.6,      // intensidad del fondo hecho con los colores de la imagen (0 = negro puro)
+  FONDO_BLUR: 6,            // qué tan difuminado (más = más suave)
 
   // ---------- ESCENA ----------
   N_AZULES: 12,
@@ -74,9 +80,9 @@ const CONFIG = {
   // ---------- OSCILACIÓN (el "latido" que lanza los impulsos) ----------
   PERIODO_BASE: 0.9,        // segundos entre impulsos al inicio
   // Cada azul comida multiplica el periodo: periodo = PERIODO_BASE * e^(CRECIMIENTO_PERIODO * comidas)
-  //   comidas:  1 -> 1.7 s | 3 (1ª imagen) -> 6 s | 6 (2ª imagen) -> 44 s
-  //             9 (3ª imagen) -> 5 min | 10 (empezaría la 4ª) -> 10 min | 11 -> 20 min ...
-  CRECIMIENTO_PERIODO: 0.65,
+  //   comidas:  1 -> 1.2 s | 3 (1ª imagen) -> 2.2 s | 6 (2ª imagen) -> 5.4 s
+  //             9 (3ª imagen) -> 13 s | 12 (4ª imagen) -> 33 s
+  CRECIMIENTO_PERIODO: 0.3,
   PERIODO_MAX: 7200,        // tope en segundos
   PERIODO_MIN: 0.05,        // el periodo nunca baja de aquí (en frenesí)
   IMPULSO_AZUL: 380,        // fuerza de cada impulso hacia una azul (px/s)
@@ -375,7 +381,7 @@ function crearMundo() {
     fase: 0, periodo: C.PERIODO_BASE,
     comidas: 0, toques: 0,
     comprometido: false, dadoTirado: false, digiere: false,
-    luz: 1, mezcla: 0, escala: 1, fin: null,
+    luz: 1, dip: 0, mezcla: 0, escala: 1, fin: null,
     destello: 0, obstruido: false,
     semilla: Math.random() * 100
   };
@@ -510,6 +516,8 @@ function comer(m, b) {
   g.r = g.r0 * (1 + C.CRECIMIENTO_RADIO * Math.min(g.comidas, 12));
   g.vx *= 0.25; g.vy *= 0.25;
   g.destello = 1;
+  g.luz = Math.max(C.LUZ_MIN, g.luz * C.LUZ_POR_AZUL);   // se apaga de inmediato un paso
+  g.dip = 1;                                              // y parpadea
   m.efectos.push({ x: b.x, y: b.y, t: 0, dur: 0.7, rmax: 38 * m.u, c: [70, 130, 255] });
   evento(m, 'come', { comidas: g.comidas, periodo: +g.periodo.toFixed(2) });
   avanzarImagen(m, b.x, b.y);
@@ -590,6 +598,7 @@ function actualizarGris(m, h) {
   // luz: cada azul comida la apaga un poco (cambia suave, no de golpe)
   const luzObj = Math.max(C.LUZ_MIN, Math.pow(C.LUZ_POR_AZUL, g.comidas));
   g.luz += (luzObj - g.luz) * (1 - Math.exp(-h * 1.5));
+  g.dip = Math.max(0, g.dip - h / Math.max(0.05, C.LUZ_PARPADEO_SEG));
 
   if (g.estado === 'final') { actualizarFinal(m, h); return; }
 
@@ -892,7 +901,7 @@ function dibujarParticulas(m) {
   }
   rr *= g.escala;
   // luz: se apaga con cada azul comida. mezcla: al final pasa a dibujarse sobre la imagen (ver dibujarGrisSobreImagen)
-  const am = (1 - g.mezcla) * g.luz;
+  const am = (1 - g.mezcla) * g.luz * (1 - C.LUZ_PARPADEO * g.dip * g.dip);
   if (am > 0.002 && rr > 0.05) {
     brillo(ctx, SPR.gris, g.x, g.y, rr * 2.4, halo * am);
     brillo(ctx, SPR.gris, g.x, g.y, rr, (0.85 + 0.15 * g.destello) * am);
@@ -945,6 +954,43 @@ function redibujarCapa(capa, t) {
   c.globalCompositeOperation = 'source-over';
 }
 
+// Fondo: los colores de las imágenes visibles, a tamaño 'cover', muy reducidos y suavizados.
+// Solo se pinta detrás de la imagen; las partículas y la imagen no se tocan.
+let FB = null, FBm = null;
+function dibujarFondo(m, ctx) {
+  const C = CONFIG;
+  if (C.FONDO_OPACIDAD <= 0) return;
+  const bw = 40, bh = Math.max(8, Math.round(bw * height / width));
+  if (!FB || FB.height !== bh) {
+    FB = document.createElement('canvas'); FB.width = bw; FB.height = bh;
+    FBm = document.createElement('canvas'); FBm.width = bw * 4; FBm.height = bh * 4;
+  }
+  const f = FB.getContext('2d');
+  f.globalAlpha = 1;
+  f.clearRect(0, 0, bw, bh);
+  let hay = false;
+  for (const capa of m.arte.capas) {
+    const o = IMGS[capa.idx];
+    if (!o || !o.ok || !capa.cv) continue;
+    const s = Math.max(bw / capa.w, bh / capa.h);
+    const w = capa.w * s, h = capa.h * s;
+    f.imageSmoothingQuality = 'high';
+    f.drawImage(capa.cv, (bw - w) / 2, (bh - h) / 2, w, h);
+    hay = true;
+  }
+  if (!hay) return;
+  const mm = FBm.getContext('2d');
+  mm.clearRect(0, 0, FBm.width, FBm.height);
+  mm.imageSmoothingEnabled = true; mm.imageSmoothingQuality = 'high';
+  if ('filter' in mm) mm.filter = `blur(${C.FONDO_BLUR}px)`;
+  mm.drawImage(FB, 0, 0, FBm.width, FBm.height);
+  if ('filter' in mm) mm.filter = 'none';
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.globalAlpha = C.FONDO_OPACIDAD;
+  ctx.drawImage(FBm, 0, 0, width, height);
+  ctx.globalAlpha = 1;
+}
+
 function dibujarImagenes(m, ctx) {
   for (const capa of m.arte.capas) {
     const o = IMGS[capa.idx];
@@ -954,6 +1000,11 @@ function dibujarImagenes(m, ctx) {
       redibujarCapa(capa, m.t);
       if (!animando && !capa.borrando) capa.sucia = false;
     }
+  }
+  dibujarFondo(m, ctx);
+  for (const capa of m.arte.capas) {
+    const o = IMGS[capa.idx];
+    if (!o || !o.ok) continue;
     const r = rectImagen(capa.w, capa.h);
     ctx.globalAlpha = CONFIG.IMAGEN_OPACIDAD;
     ctx.drawImage(capa.cv, r.x, r.y, r.w, r.h);
@@ -972,8 +1023,8 @@ function dibujarGrisSobreImagen(m, ctx) {
   const col = base.map((v, i) => Math.round(v + (f.col[i] - v) * k));
   pintarSprite(SPR.tmp, col[0], col[1], col[2]);
   ctx.globalCompositeOperation = 'source-over';
-  brillo(ctx, SPR.tmp, g.x, g.y, rr * 2.4, 0.12 * g.luz * g.mezcla);
-  brillo(ctx, SPR.tmp, g.x, g.y, rr, 0.85 * g.luz * g.mezcla);
+  brillo(ctx, SPR.tmp, g.x, g.y, rr * 2.4, 0.12 * g.luz * g.mezcla * (1 - C.LUZ_PARPADEO * g.dip * g.dip));
+  brillo(ctx, SPR.tmp, g.x, g.y, rr, 0.85 * g.luz * g.mezcla * (1 - C.LUZ_PARPADEO * g.dip * g.dip));
   ctx.globalAlpha = 1;
 }
 
