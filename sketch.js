@@ -26,7 +26,7 @@ const CONFIG = {
   // ---------- DECISIÓN (lo más importante) ----------
   PROB_AZUL_INICIAL: 0.8,   // prob. de ir hacia las azules. El resto (1 - esto) va hacia la de afuera
   PROB_RENDIRSE: 0.4,       // prob. de rendirse al chocar con el círculo rojo, yendo hacia afuera
-  ESPERA_INICIAL: 3,        // segundos de calma antes de la primera decisión
+  ESPERA_INICIAL: 1,        // segundos de calma antes de la primera decisión
 
   // ---------- IMÁGENES (lo que aparece al comer azules) ----------
   IMAGENES: ['img/1.jpg', 'img/2.jpg', 'img/3.jpg', 'img/4.jpg'],  // en orden; al terminar la última vuelve a la primera
