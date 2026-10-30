@@ -1,5 +1,5 @@
 /* =====================================================================
-   OBRA DIGITAL INTERACTIVA (VERSIÓN CORREGIDA Y LIMPIA)
+   OBRA DIGITAL INTERACTIVA (VERSIÓN ROBUSTA ANTI-PANTALLA NEGRA)
    ===================================================================== */
 
 const CONFIG = {
@@ -116,23 +116,65 @@ function evento(m, tipo, extra) {
   if (CONFIG.LOG_CONSOLA && typeof console !== 'undefined') console.log('[obra]', e);
 }
 
-/* ===================== imágenes ===================== */
+/* ===================== imágenes con fallback seguro ===================== */
 
 const IMGS = [];   
 let imgExteriorObj = null;
 
+// Crea una imagen de respaldo procedural (canvas temporal) si falla la carga para evitar pantalla negra
+function crearImagenRespaldo(tipoTexto) {
+  const c = document.createElement('canvas');
+  c.width = 600; c.height = 800;
+  const ctx = c.getContext('2d');
+  
+  // Gradiente artístico de respaldo
+  const grad = ctx.createLinearGradient(0, 0, 600, 800);
+  grad.addColorStop(0, '#1a1a3a');
+  grad.addColorStop(0.5, '#4a154b');
+  grad.addColorStop(1, '#0f2027');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 600, 800);
+
+  // Círculos y formas estéticas para que se vea bien si se usa el respaldo
+  for(let i=0; i<40; i++) {
+    ctx.fillStyle = `hsla(${i * 45}, 70%, 60%, 0.3)`;
+    ctx.beginPath();
+    ctx.arc(Math.random()*600, Math.random()*800, Math.random()*80 + 20, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 36px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(tipoTexto, 300, 400);
+
+  const img = new Image();
+  img.src = c.toDataURL();
+  return img;
+}
+
 function cargarImagenes() {
   CONFIG.IMAGENES.forEach((src, i) => {
-    const o = { img: new Image(), ok: false, w: 663, h: 1024 };
+    const o = { img: new Image(), ok: false, w: 600, h: 800 };
     o.img.onload = () => { o.ok = true; o.w = o.img.naturalWidth; o.h = o.img.naturalHeight; };
-    o.img.onerror = () => { if (typeof console !== 'undefined') console.warn('[obra] no se pudo cargar', src); };
+    o.img.onerror = () => {
+      console.warn('[obra] No se encontró o falló', src, '- Usando imagen de respaldo.');
+      o.img = crearImagenRespaldo('IMAGEN ' + (i + 1));
+      o.ok = true;
+      o.w = 600; o.h = 800;
+    };
     o.img.src = src;
     IMGS[i] = o;
   });
 
-  imgExteriorObj = { img: new Image(), ok: false, w: 663, h: 1024 };
+  imgExteriorObj = { img: new Image(), ok: false, w: 600, h: 800 };
   imgExteriorObj.img.onload = () => { imgExteriorObj.ok = true; imgExteriorObj.w = imgExteriorObj.img.naturalWidth; imgExteriorObj.h = imgExteriorObj.img.naturalHeight; };
-  imgExteriorObj.img.onerror = () => { if (typeof console !== 'undefined') console.warn('[obra] no se pudo cargar', CONFIG.IMAGEN_EXTERIOR); };
+  imgExteriorObj.img.onerror = () => {
+    console.warn('[obra] No se encontró o falló 5ta imagen', CONFIG.IMAGEN_EXTERIOR, '- Usando respaldo.');
+    imgExteriorObj.img = crearImagenRespaldo('5ta IMAGEN EXTERIOR');
+    imgExteriorObj.ok = true;
+    imgExteriorObj.w = 600; imgExteriorObj.h = 800;
+  };
   imgExteriorObj.img.src = CONFIG.IMAGEN_EXTERIOR;
 }
 
@@ -165,7 +207,7 @@ function nuevaCapa(m, idx, esExterior = false) {
 }
 
 function aNormalizada(idx, x, y, esExterior = false) {
-  const o = esExterior ? imgExteriorObj : (IMGS[idx] || { w: 663, h: 1024 });
+  const o = esExterior ? imgExteriorObj : (IMGS[idx] || { w: 600, h: 800 });
   const r = rectImagen(o.w, o.h);
   return { x: clamp((x - r.x) / r.w, 0, 1), y: clamp((y - r.y) / r.h, 0, 1) };
 }
@@ -437,3 +479,9 @@ function comer(m, b) {
 
 function tocarLejana(m) {
   const g = m.gris, C = CONFIG, L = m.lejana;
+  g.toques++;
+  if (g.estado !== 'frenesi') { g.estado = 'frenesi'; evento(m, 'frenesi'); }
+  g.destello = 1;
+  m.efectos.push({ x: L.x, y: L.y, t: 0, dur: 0.9, rmax: 60 * m.u, c: [255, 90, 220] });
+  m.efectos.push({ x: L.x, y: L.y, t: 0.12, dur: 0.9, rmax: 42 * m.u, c: [90, 255, 200] });
+  evento(
