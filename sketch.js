@@ -1,60 +1,60 @@
 /* =====================================================================
-   OBRA DIGITAL INTERACTIVA (VERSIÓN MODIFICADA)
+   OBRA DIGITAL INTERACTIVA (VERSIÓN AJUSTADA Y MEJORADA)
    ===================================================================== */
 
 const CONFIG = {
   // ---------- DECISIÓN (lo más importante) ----------
-  PROB_AZUL_INICIAL: 0.8,   // prob. de ir hacia las azules. El resto (1 - esto) va hacia la de afuera
-  PROB_RENDIRSE: 0.4,       // prob. de rendirse al chocar con el círculo rojo, yendo hacia afuera
-  ESPERA_INICIAL: 3,        // segundos de calma antes de la primera decisión
+  PROB_AZUL_INICIAL: 0.8,   
+  PROB_RENDIRSE: 0.4,       
+  ESPERA_INICIAL: 3,        
 
-  // ---------- IMÁGENES (lo que aparece al comer azules o atrapar la exterior) ----------
-  IMAGENES: ['img/1.jpg', 'img/2.jpg', 'img/3.jpg', 'img/4.jpg'],  // las 4 primeras para las azules
-  IMAGEN_EXTERIOR: 'img/5.jpg', // 5ta imagen exclusiva de la partícula exterior
-  COMIDAS_POR_IMAGEN: 3,    // azules necesarias para completar una imagen de las azules
-  COMIDAS_EXTERIOR: 12,     // toques necesarios para completar la 5ta imagen (aparición mucho más lenta)
-  IMAGEN_VARIACION: 0.04,   // cuánto varía ese "tercio" de una comida a otra (0 = exacto)
-  IMAGEN_PARCHES: 3,        // en cuántas zonas/manchas aparece lo nuevo con cada azul
-  IMAGEN_PROPAGACION: 5,    // segundos que tarda cada mancha en extenderse
-  IMAGEN_FADE_CELDA: 2.5,   // segundos que tarda en aparecer cada trocito
-  IMAGEN_BORRADO: 3,        // segundos que tarda en borrarse la imagen anterior
-  IMAGEN_OPACIDAD: 0.9,     // 1 = imagen a todo color; menos = más oscura detrás de las partículas
-  IMAGEN_AJUSTE: 'contain', // 'contain' = imagen completa con barras negras | 'cover' = llena la pantalla recortando
-  IMAGEN_COLS: 26,          // la imagen se reparte en una cuadrícula de COLS x FILAS trocitos
+  // ---------- IMÁGENES ----------
+  IMAGENES: ['img/1.jpg', 'img/2.jpg', 'img/3.jpg', 'img/4.jpg'],  
+  IMAGEN_EXTERIOR: 'img/5.jpg', 
+  COMIDAS_POR_IMAGEN: 3,    
+  COMIDAS_EXTERIOR: 12,     
+  IMAGEN_VARIACION: 0.04,   
+  IMAGEN_PARCHES: 3,        
+  IMAGEN_PROPAGACION: 5,    
+  IMAGEN_FADE_CELDA: 2.5,   
+  IMAGEN_BORRADO: 3,        
+  IMAGEN_OPACIDAD: 0.9,     
+  IMAGEN_AJUSTE: 'contain', 
+  IMAGEN_COLS: 26,          
   IMAGEN_FILAS: 40,
 
   // ---------- ESCENA ----------
   N_AZULES: 12,
-  RENACER_SEGUNDOS: 2.5,    // una azul comida reaparece (en otro sitio) tras estos segundos. -1 = no renacen
+  RENACER_SEGUNDOS: 2.5,    
   N_ROJAS: 160,
-  RADIO_CIRCULO: 190,       // radio del círculo de partículas rojas
-  BANDA_ROJA: 42,           // semiancho de la zona donde el círculo frena a la gris
-  ZONA_AZUL_MIN: 45,        // las azules viven entre estos dos radios (desde el centro)
+  RADIO_CIRCULO: 190,       
+  BANDA_ROJA: 42,           
+  ZONA_AZUL_MIN: 45,        
   ZONA_AZUL_MAX: 140,
   RADIO_GRIS: 9,
   RADIO_AZUL: 5,
   RADIO_ROJA: 2.2,
   RADIO_LEJANA: 7,
-  VEL_LEJANA: 8,            // lo lenta que vaga la multicolor (px/s)
+  VEL_LEJANA: 8,            
 
-  // ---------- OSCILACIÓN (el "latido" que lanza los impulsos) ----------
-  PERIODO_BASE: 0.9,        // segundos entre impulsos al inicio
+  // ---------- OSCILACIÓN ----------
+  PERIODO_BASE: 0.9,        
   CRECIMIENTO_PERIODO: 0.65,
-  PERIODO_MAX: 7200,        // tope en segundos
-  PERIODO_MIN: 0.05,        // el periodo nunca baja de aquí (en frenesí)
-  IMPULSO_AZUL: 380,        // fuerza de cada impulso hacia una azul (px/s)
-  IMPULSO: 520,             // fuerza de cada impulso hacia la multicolor
-  IMPULSO_POR_TOQUE: 0.12,  // en frenesí cada toque suma este % a los impulsos
-  DISPERSION_IMPULSO: 0.12, // desvío aleatorio del impulso (radianes)
+  PERIODO_MAX: 7200,        
+  PERIODO_MIN: 0.05,        
+  IMPULSO_AZUL: 380,        
+  IMPULSO: 520,             
+  IMPULSO_POR_TOQUE: 0.12,  
+  DISPERSION_IMPULSO: 0.12, 
 
   // ---------- CADA VEZ QUE TOCA UNA MULTICOLOR ----------
-  FACTOR_PERIODO_INICIAL: 1.0, // Ya no altera/ralentiza el periodo al tocar la exterior
+  FACTOR_PERIODO_INICIAL: 1.0, 
   FACTOR_PERIODO_PASO: 0.0,
   FACTOR_PERIODO_MIN: 1.0,
 
   // ---------- MOVIMIENTO ----------
   ROZAMIENTO: 1.6,
-  GUIADO_AZUL: 140,         // empujoncito continuo hacia la azul
+  GUIADO_AZUL: 140,         
   GUIADO_EXTERIOR: 150,
   GUIADO_FRENESI: 300,
   GUIADO_FRENESI_POR_TOQUE: 60,
@@ -80,7 +80,6 @@ const CONFIG = {
   LOG_CONSOLA: false        
 };
 
-// Permite sobrescribir cualquier valor de CONFIG desde la URL
 if (typeof location !== 'undefined') {
   const params = new URLSearchParams(location.search);
   for (const k of Object.keys(CONFIG)) {
@@ -119,7 +118,7 @@ function evento(m, tipo, extra) {
 
 /* ===================== imágenes ===================== */
 
-const IMGS = [];   // 0..3 para azules, 4 para la exterior
+const IMGS = [];   
 let imgExteriorObj = null;
 
 function cargarImagenes() {
@@ -131,7 +130,6 @@ function cargarImagenes() {
     IMGS[i] = o;
   });
 
-  // Cargar la 5ta imagen exclusiva de la exterior
   imgExteriorObj = { img: new Image(), ok: false, w: 663, h: 1024 };
   imgExteriorObj.img.onload = () => { imgExteriorObj.ok = true; imgExteriorObj.w = imgExteriorObj.img.naturalWidth; imgExteriorObj.h = imgExteriorObj.img.naturalHeight; };
   imgExteriorObj.img.onerror = () => { if (typeof console !== 'undefined') console.warn('[obra] no se pudo cargar', CONFIG.IMAGEN_EXTERIOR); };
@@ -197,7 +195,6 @@ function avanzarImagen(m, bx, by) {
   evento(m, 'revela', { imagen: A.indice + 1, parte: A.comidas + '/' + K, cobertura: +(capa.asignadas / capa.N).toFixed(2) });
 }
 
-// Lógica de avance exclusiva para la 5ta imagen con la partícula exterior
 function avanzarImagenExterior(m, bx, by) {
   const C = CONFIG, A = m.arte;
   if (!imgExteriorObj) return;
@@ -282,7 +279,8 @@ function crearMundo() {
   const m = {
     u, cx, cy, t: 0, espera: C.ESPERA_INICIAL,
     azules: [], rojas: [], efectos: [], eventos: [], lejana: null, gris: null,
-    arte: { indice: -1, comidas: 0, toquesExterior: 0, capas: [] }
+    arte: { indice: -1, comidas: 0, toquesExterior: 0, capas: [] },
+    terminado: false
   };
 
   m.gris = {
@@ -446,13 +444,12 @@ function tocarLejana(m) {
   m.efectos.push({ x: L.x, y: L.y, t: 0.12, dur: 0.9, rmax: 42 * m.u, c: [90, 255, 200] });
   evento(m, 'toca', { toques: g.toques });
   
-  // Avanzar en la construcción de la 5ta imagen exclusiva de la exterior
   avanzarImagenExterior(m, L.x, L.y);
 
   m.lejana = nuevaLejana(m, true);
 }
 
-// Analizar la imagen completada para elegir el píxel central óptimo (lejos de blanco/negro)
+// Analizar la 5ta imagen al completarse
 function iniciarAsimilacion(m, capa) {
   const g = m.gris;
   const o = imgExteriorObj;
@@ -468,10 +465,10 @@ function iniciarAsimilacion(m, capa) {
   let mejorX = o.w / 2, mejorY = o.h / 2, mejorScore = -1;
   const cx = o.w / 2, cy = o.h / 2;
 
-  // Muestreo de píxeles buscando los requisitos
-  for (let i = 0; i < 400; i++) {
-    const rx = Math.floor(cx + (Math.random() - 0.5) * (o.w * 0.6));
-    const ry = Math.floor(cy + (Math.random() - 0.5) * (o.h * 0.6));
+  for (let i = 0; i < 500; i++) {
+    // Preferir fuertemente la zona del centro
+    const rx = Math.floor(cx + (Math.random() - 0.5) * (o.w * 0.4));
+    const ry = Math.floor(cy + (Math.random() - 0.5) * (o.h * 0.4));
     if (rx < 0 || rx >= o.w || ry < 0 || ry >= o.h) continue;
 
     const idx = (ry * o.w + rx) * 4;
@@ -481,9 +478,9 @@ function iniciarAsimilacion(m, capa) {
     const saturacionExtrema = Math.abs(r - gCol) + Math.abs(gCol - b) + Math.abs(b - r);
     const distanciaCentro = Math.hypot(rx - cx, ry - cy);
 
-    // Criterio: alejado de blanco (>240) y negro (<15), preferir zona centro
-    if (brilloPix > 15 && brilloPix < 240) {
-      const score = saturacionExtrema * 2 - (distanciaCentro / (o.w * 0.5)) * 50;
+    // Evitar blanco y negro puros
+    if (brilloPix > 25 && brilloPix < 230) {
+      const score = saturacionExtrema * 3 - (distanciaCentro / (o.w * 0.5)) * 80;
       if (score > mejorScore) {
         mejorScore = score;
         mejorX = rx;
@@ -514,18 +511,18 @@ function actualizarGris(m, h) {
     return;
   }
 
-  // Si está asimilando la imagen creada por las exteriores
+  // Comportamiento exacto al asimilar la 5ta imagen: se detiene por completo y se encoge
   if (g.asimilando) {
     const capaActual = m.arte.capas[m.arte.capas.length - 1];
     if (capaActual && capaActual.metaAsimilacion) {
       const meta = capaActual.metaAsimilacion;
-      g.x += (meta.x - g.x) * h * 3.5;
-      g.y += (meta.y - g.y) * h * 3.5;
-      g.progresoAsimilacion += h * 0.4;
-      g.r = Math.max(1, g.r0 * (1 - g.progresoAsimilacion));
+      g.x += (meta.x - g.x) * h * 4.0;
+      g.y += (meta.y - g.y) * h * 4.0;
+      g.vx = 0; g.vy = 0;
+      g.progresoAsimilacion += h * 0.5;
+      g.r = Math.max(0.5, g.r0 * (1 - g.progresoAsimilacion));
       if (g.progresoAsimilacion >= 1) {
-        // Al terminar, limpiar todas las demás partículas y reiniciar ciclo
-        reiniciar();
+        m.terminado = true; // Detiene la simulación y oculta los demás elementos
       }
     }
     return;
@@ -685,6 +682,7 @@ function actualizarLejana(m, h) {
 }
 
 function actualizarMundo(m, dt) {
+  if (m.terminado) return;
   dt = Math.min(dt, 0.05);
   const n = Math.max(1, Math.ceil(dt / (1 / 120)));
   const h = dt / n;
@@ -758,6 +756,7 @@ function limpiarCapaParticulas() {
 }
 
 function dibujarParticulas(m) {
+  if (m.terminado) return;
   const ctx = CPctx, C = CONFIG, u = m.u, t = m.t;
 
   ctx.globalCompositeOperation = 'source-over';
@@ -796,10 +795,9 @@ function dibujarParticulas(m) {
     halo = 0.12 + 0.35 * carga;
   }
 
-  // Pérdida progresiva de luz basada en las comidas acumuladas de azules
-  const factorLuz = Math.max(0.2, 1 - (g.comidas * 0.06));
+  // Pérdida de luz sustancial y muy visible por cada azul consumida (multiplicador fuerte)
+  const factorLuz = Math.max(0.1, 1 - (g.comidas * 0.2));
   
-  // Si está asimilando, se tiñe y toma el color del píxel seleccionado
   if (g.asimilando) {
     const cr = g.colorAsimilado[0], cg = g.colorAsimilado[1], cb = g.colorAsimilado[2];
     if (!SPR.grisAsimilado) SPR.grisAsimilado = crearSprite(cr, cg, cb);
@@ -857,7 +855,6 @@ function redibujarCapa(capa, t) {
   c.drawImage(capa.mk, 0, 0);
   c.globalCompositeOperation = 'source-over';
 
-  // Verificar si la capa exterior está completamente revelada para disparar la asimilación
   if (capa.esExterior && !capa.completadaAsimilacion) {
     let completado = true;
     for (let i = 0; i < capa.N; i++) {
@@ -889,12 +886,34 @@ function dibujarImagenes(m, ctx) {
 function componer(m) {
   const ctx = drawingContext;
   ctx.globalCompositeOperation = 'source-over';
+  
+  // Fondo difuminado dinámico basado en la imagen activa para fundirlas estéticamente
+  if (m.arte.capas.length > 0) {
+    const capaActual = m.arte.capas[m.arte.capas.length - 1];
+    const o = capaActual.esExterior ? imgExteriorObj : IMGS[capaActual.idx];
+    if (o && o.ok && capaActual.cv) {
+      ctx.globalAlpha = 0.25; // Sutil y ambiental
+      const r = rectImagen(o.w, o.h);
+      ctx.drawImage(capaActual.cv, r.x, r.y, r.w, r.h);
+      ctx.filter = 'blur(40px)';
+      ctx.drawImage(capaActual.cv, 0, 0, width, height);
+      ctx.filter = 'none';
+    } else {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, width, height);
+    }
+  } else {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, width, height);
+  }
+
   ctx.globalAlpha = 1;
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, width, height);
   dibujarImagenes(m, ctx);
-  ctx.globalCompositeOperation = 'lighter';
-  ctx.drawImage(CP, 0, 0, width, height);
+  
+  if (!m.terminado) {
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.drawImage(CP, 0, 0, width, height);
+  }
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
 }
