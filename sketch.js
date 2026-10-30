@@ -1,20 +1,5 @@
 /* =====================================================================
-   OBRA DIGITAL INTERACTIVA
-   Una partícula gris decide entre las azules que la rodean y una
-   partícula multicolor lejana, al otro lado de un círculo rojo.
-
-   Cada azul que la gris se come hace aparecer un pedazo (~1/3) de una
-   imagen. Las azules renacen, pero cada una que come alarga muchísimo su
-   oscilación: hacia la tercera imagen casi ya no vuelve a comer.
-
-   Clic / toque / tecla R  ->  reinicia la obra (nueva decisión).
-
-   TODO lo que se puede ajustar está en CONFIG.
-   Las medidas en píxeles están pensadas para una pantalla de 800 px de
-   lado menor y se escalan solas a cualquier tamaño de ventana.
-   También puedes cambiar valores desde la URL sin tocar el código:
-     tu-sitio.github.io/obra/?PROB_AZUL_INICIAL=0.5&CRECIMIENTO_PERIODO=0.3
-   (útil para probar rápido: con CRECIMIENTO_PERIODO=0.3 ves las 4 imágenes en pocos minutos)
+   OBRA DIGITAL INTERACTIVA (VERSIÓN MODIFICADA)
    ===================================================================== */
 
 const CONFIG = {
@@ -23,9 +8,11 @@ const CONFIG = {
   PROB_RENDIRSE: 0.4,       // prob. de rendirse al chocar con el círculo rojo, yendo hacia afuera
   ESPERA_INICIAL: 3,        // segundos de calma antes de la primera decisión
 
-  // ---------- IMÁGENES (lo que aparece al comer azules) ----------
-  IMAGENES: ['img/1.jpg', 'img/2.jpg', 'img/3.jpg', 'img/4.jpg'],  // en orden; al terminar la última vuelve a la primera
-  COMIDAS_POR_IMAGEN: 3,    // azules necesarias para completar una imagen (cada una revela ~1/COMIDAS)
+  // ---------- IMÁGENES (lo que aparece al comer azules o atrapar la exterior) ----------
+  IMAGENES: ['img/1.jpg', 'img/2.jpg', 'img/3.jpg', 'img/4.jpg'],  // las 4 primeras para las azules
+  IMAGEN_EXTERIOR: 'img/5.jpg', // 5ta imagen exclusiva de la partícula exterior
+  COMIDAS_POR_IMAGEN: 3,    // azules necesarias para completar una imagen de las azules
+  COMIDAS_EXTERIOR: 12,     // toques necesarios para completar la 5ta imagen (aparición mucho más lenta)
   IMAGEN_VARIACION: 0.04,   // cuánto varía ese "tercio" de una comida a otra (0 = exacto)
   IMAGEN_PARCHES: 3,        // en cuántas zonas/manchas aparece lo nuevo con cada azul
   IMAGEN_PROPAGACION: 5,    // segundos que tarda cada mancha en extenderse
@@ -52,9 +39,6 @@ const CONFIG = {
 
   // ---------- OSCILACIÓN (el "latido" que lanza los impulsos) ----------
   PERIODO_BASE: 0.9,        // segundos entre impulsos al inicio
-  // Cada azul comida multiplica el periodo: periodo = PERIODO_BASE * e^(CRECIMIENTO_PERIODO * comidas)
-  //   comidas:  1 -> 1.7 s | 3 (1ª imagen) -> 6 s | 6 (2ª imagen) -> 44 s
-  //             9 (3ª imagen) -> 5 min | 10 (empezaría la 4ª) -> 10 min | 11 -> 20 min ...
   CRECIMIENTO_PERIODO: 0.65,
   PERIODO_MAX: 7200,        // tope en segundos
   PERIODO_MIN: 0.05,        // el periodo nunca baja de aquí (en frenesí)
@@ -63,42 +47,40 @@ const CONFIG = {
   IMPULSO_POR_TOQUE: 0.12,  // en frenesí cada toque suma este % a los impulsos
   DISPERSION_IMPULSO: 0.12, // desvío aleatorio del impulso (radianes)
 
-  // ---------- CADA VEZ QUE TOCA UNA MULTICOLOR (todavía sin imágenes) ----------
-  // factor del periodo en el toque n = max(MIN, INICIAL - PASO * (n - 1))
-  // primer toque: un poco más rápido; los siguientes, cada vez mucho más.
-  FACTOR_PERIODO_INICIAL: 0.92,
-  FACTOR_PERIODO_PASO: 0.06,
-  FACTOR_PERIODO_MIN: 0.55,
+  // ---------- CADA VEZ QUE TOCA UNA MULTICOLOR ----------
+  FACTOR_PERIODO_INICIAL: 1.0, // Ya no altera/ralentiza el periodo al tocar la exterior
+  FACTOR_PERIODO_PASO: 0.0,
+  FACTOR_PERIODO_MIN: 1.0,
 
   // ---------- MOVIMIENTO ----------
   ROZAMIENTO: 1.6,
-  GUIADO_AZUL: 140,         // empujoncito continuo hacia la azul; se apaga solo cuando el periodo crece
+  GUIADO_AZUL: 140,         // empujoncito continuo hacia la azul
   GUIADO_EXTERIOR: 150,
   GUIADO_FRENESI: 300,
   GUIADO_FRENESI_POR_TOQUE: 60,
   VEL_MAX_AZUL: 1100,
   VEL_MAX_EXTERIOR: 900,
   VEL_MAX_FRENESI_INICIAL: 900,
-  VEL_MAX_FRENESI_FINAL: 2400,  // se alcanza tras ~10 toques
-  TEMBLOR: 25,              // la "vida" propia: movimiento mínimo de la gris
-  JITTER_ESPERA: 5,         // amplitud del movimiento mientras espera
+  VEL_MAX_FRENESI_FINAL: 2400,
+  TEMBLOR: 25,              
+  JITTER_ESPERA: 5,         
 
   // ---------- OBSTÁCULOS ----------
-  ROZAMIENTO_ANILLO: 22,    // cuánto frena el círculo rojo (más = más lento)
-  VIENTO_ANILLO: 90,        // fuerza en contra del círculo rojo (debe ser menor que GUIADO_EXTERIOR, o nunca cruza)
-  ROZAMIENTO_OBSTACULO: 5,  // cuánto frenan las azules al estorbar
+  ROZAMIENTO_ANILLO: 22,    
+  VIENTO_ANILLO: 90,        
+  ROZAMIENTO_OBSTACULO: 5,  
 
   // ---------- LOOK ----------
-  ESTELA: 0.22,             // 0 = estela infinita, 1 = sin estela
-  AMPLITUD_OSC: 0.35,       // cuánto "late" visualmente la gris
-  CRECIMIENTO_RADIO: 0.02,  // la gris crece un poco con cada azul
-  ROTACION_CIRCULO: 0.03,   // giro lento del círculo rojo (rad/s)
-  BRILLO_LEJANA: 0.4,       // lo tenue de la multicolor
+  ESTELA: 0.22,             
+  AMPLITUD_OSC: 0.35,       
+  CRECIMIENTO_RADIO: 0.02,  
+  ROTACION_CIRCULO: 0.03,   
+  BRILLO_LEJANA: 0.4,       
 
-  LOG_CONSOLA: false        // true = imprime las decisiones en la consola del navegador
+  LOG_CONSOLA: false        
 };
 
-// Permite sobrescribir cualquier valor de CONFIG desde la URL (?NOMBRE=valor)
+// Permite sobrescribir cualquier valor de CONFIG desde la URL
 if (typeof location !== 'undefined') {
   const params = new URLSearchParams(location.search);
   for (const k of Object.keys(CONFIG)) {
@@ -115,14 +97,12 @@ if (typeof location !== 'undefined') {
 /* ===================== utilidades ===================== */
 
 function ruido(t, s) {
-  // ruido suave y barato en [-1, 1]
   return 0.5 * Math.sin(t + s * 1.7) + 0.3 * Math.sin(t * 1.73 + s * 2.9 + 1.3) + 0.2 * Math.sin(t * 2.41 + s * 4.1 + 2.1);
 }
 
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
 function distSeg(px, py, ax, ay, bx, by) {
-  // distancia de un punto al segmento a-b (evita atravesar objetivos a mucha velocidad)
   const abx = bx - ax, aby = by - ay;
   const l2 = abx * abx + aby * aby;
   let t = l2 ? ((px - ax) * abx + (py - ay) * aby) / l2 : 0;
@@ -139,7 +119,8 @@ function evento(m, tipo, extra) {
 
 /* ===================== imágenes ===================== */
 
-const IMGS = [];   // { img, ok, w, h } por cada archivo de CONFIG.IMAGENES
+const IMGS = [];   // 0..3 para azules, 4 para la exterior
+let imgExteriorObj = null;
 
 function cargarImagenes() {
   CONFIG.IMAGENES.forEach((src, i) => {
@@ -149,9 +130,14 @@ function cargarImagenes() {
     o.img.src = src;
     IMGS[i] = o;
   });
+
+  // Cargar la 5ta imagen exclusiva de la exterior
+  imgExteriorObj = { img: new Image(), ok: false, w: 663, h: 1024 };
+  imgExteriorObj.img.onload = () => { imgExteriorObj.ok = true; imgExteriorObj.w = imgExteriorObj.img.naturalWidth; imgExteriorObj.h = imgExteriorObj.img.naturalHeight; };
+  imgExteriorObj.img.onerror = () => { if (typeof console !== 'undefined') console.warn('[obra] no se pudo cargar', CONFIG.IMAGEN_EXTERIOR); };
+  imgExteriorObj.img.src = CONFIG.IMAGEN_EXTERIOR;
 }
 
-// dónde se dibuja una imagen de iw x ih dentro de la ventana
 function rectImagen(iw, ih) {
   const cover = CONFIG.IMAGEN_AJUSTE === 'cover';
   const s = cover ? Math.max(width / iw, height / ih) : Math.min(width / iw, height / ih);
@@ -159,15 +145,17 @@ function rectImagen(iw, ih) {
   return { x: (width - w) / 2, y: (height - h) / 2, w, h };
 }
 
-function nuevaCapa(m, idx) {
+function nuevaCapa(m, idx, esExterior = false) {
   const C = CONFIG, N = C.IMAGEN_COLS * C.IMAGEN_FILAS;
   const capa = {
-    idx, N,
-    ini: new Float32Array(N).fill(Infinity),   // instante en que cada trocito empieza a aparecer
+    idx, N, esExterior,
+    ini: new Float32Array(N).fill(Infinity),
     cxn: new Float32Array(N), cyn: new Float32Array(N), rf: new Float32Array(N),
-    bdel: null,                                // retardo de borrado de cada trocito
+    bdel: null,
     asignadas: 0, borrando: false, tBorra: 0, finAnim: 0, sucia: true,
-    cv: null, mk: null, w: 0, h: 0
+    cv: null, mk: null, w: 0, h: 0,
+    completadaAsimilacion: false,
+    metaAsimilacion: null
   };
   for (let i = 0; i < N; i++) {
     const col = i % C.IMAGEN_COLS, fila = Math.floor(i / C.IMAGEN_COLS);
@@ -178,27 +166,24 @@ function nuevaCapa(m, idx) {
   return capa;
 }
 
-// posición (0..1) dentro de la imagen de un punto de la pantalla
-function aNormalizada(idx, x, y) {
-  const o = IMGS[idx] || { w: 663, h: 1024 };
+function aNormalizada(idx, x, y, esExterior = false) {
+  const o = esExterior ? imgExteriorObj : (IMGS[idx] || { w: 663, h: 1024 });
   const r = rectImagen(o.w, o.h);
   return { x: clamp((x - r.x) / r.w, 0, 1), y: clamp((y - r.y) / r.h, 0, 1) };
 }
 
-// Aparece un pedazo nuevo de la imagen actual (o empieza otra, borrando la anterior)
 function avanzarImagen(m, bx, by) {
   const C = CONFIG, A = m.arte;
   if (!C.IMAGENES.length) return;
   const K = Math.max(1, Math.round(C.COMIDAS_POR_IMAGEN));
   let capa = A.capas.length ? A.capas[A.capas.length - 1] : null;
 
-  if (!capa || capa.borrando || A.comidas >= K) {
-    // la imagen anterior estaba completa y se come otra azul: se borra y empieza la siguiente
+  if (!capa || capa.borrando || capa.esExterior || A.comidas >= K) {
     const nueva = (A.indice + 1) % C.IMAGENES.length;
-    if (capa && !capa.borrando) iniciarBorrado(m, capa, aNormalizada(capa.idx, bx, by));
+    if (capa && !capa.borrando) iniciarBorrado(m, capa, aNormalizada(capa.idx, bx, by, capa.esExterior));
     A.indice = nueva;
     A.comidas = 0;
-    capa = nuevaCapa(m, A.indice);
+    capa = nuevaCapa(m, A.indice, false);
     A.capas.push(capa);
     evento(m, 'imagen_nueva', { imagen: A.indice + 1 });
   }
@@ -207,12 +192,34 @@ function avanzarImagen(m, bx, by) {
   let frac = A.comidas >= K ? 1 : A.comidas / K + (Math.random() - 0.5) * 2 * C.IMAGEN_VARIACION;
   frac = clamp(frac, 0, 1);
   const n = Math.max(1, Math.round(frac * capa.N) - capa.asignadas);
-  const s = aNormalizada(A.indice, bx, by);
+  const s = aNormalizada(A.indice, bx, by, false);
   revelarCeldas(m, capa, n, s.x * C.IMAGEN_COLS, s.y * C.IMAGEN_FILAS);
   evento(m, 'revela', { imagen: A.indice + 1, parte: A.comidas + '/' + K, cobertura: +(capa.asignadas / capa.N).toFixed(2) });
 }
 
-// Elige n trocitos agrupados en manchas: una nace donde se comió la azul, las demás en sitios al azar
+// Lógica de avance exclusiva para la 5ta imagen con la partícula exterior
+function avanzarImagenExterior(m, bx, by) {
+  const C = CONFIG, A = m.arte;
+  if (!imgExteriorObj) return;
+  const K = Math.max(1, Math.round(C.COMIDAS_EXTERIOR));
+  let capa = A.capas.length ? A.capas[A.capas.length - 1] : null;
+
+  if (!capa || capa.borrando || !capa.esExterior || A.toquesExterior >= K) {
+    if (capa && !capa.borrando) iniciarBorrado(m, capa, aNormalizada(0, bx, by, true));
+    A.toquesExterior = 0;
+    capa = nuevaCapa(m, 0, true);
+    A.capas.push(capa);
+    evento(m, 'imagen_exterior_nueva');
+  }
+
+  A.toquesExterior++;
+  let frac = A.toquesExterior >= K ? 1 : A.toquesExterior / K;
+  const n = Math.max(1, Math.round(frac * capa.N) - capa.asignadas);
+  const s = aNormalizada(0, bx, by, true);
+  revelarCeldas(m, capa, n, s.x * C.IMAGEN_COLS, s.y * C.IMAGEN_FILAS);
+  evento(m, 'revela_exterior', { parte: A.toquesExterior + '/' + K, cobertura: +(capa.asignadas / capa.N).toFixed(2) });
+}
+
 function revelarCeldas(m, capa, n, sx, sy) {
   const C = CONFIG, COLS = C.IMAGEN_COLS;
   const libres = [];
@@ -229,7 +236,7 @@ function revelarCeldas(m, capa, n, sx, sy) {
     const x = (i % COLS) + 0.5, y = Math.floor(i / COLS) + 0.5;
     let d = Infinity;
     for (const s of semillas) d = Math.min(d, Math.hypot(x - s.x, y - s.y));
-    return { i, d, score: d * (0.75 + 0.5 * Math.random()) + Math.random() * 1.5 };   // bordes irregulares
+    return { i, d, score: d * (0.75 + 0.5 * Math.random()) + Math.random() * 1.5 };
   });
   pts.sort((a, b) => a.score - b.score);
   const elegidas = pts.slice(0, n);
@@ -242,7 +249,6 @@ function revelarCeldas(m, capa, n, sx, sy) {
   capa.sucia = true;
 }
 
-// La imagen se deshace desde el punto donde se comió la azul
 function iniciarBorrado(m, capa, s) {
   const C = CONFIG;
   capa.borrando = true;
@@ -253,7 +259,6 @@ function iniciarBorrado(m, capa, s) {
     capa.bdel[i] = C.IMAGEN_BORRADO * clamp(0.65 * d + 0.35 * Math.random(), 0, 1);
   }
   capa.sucia = true;
-  evento(m, 'imagen_se_borra', { imagen: capa.idx + 1 });
 }
 
 function alfaCelda(capa, i, t) {
@@ -277,21 +282,23 @@ function crearMundo() {
   const m = {
     u, cx, cy, t: 0, espera: C.ESPERA_INICIAL,
     azules: [], rojas: [], efectos: [], eventos: [], lejana: null, gris: null,
-    arte: { indice: -1, comidas: 0, capas: [] }
+    arte: { indice: -1, comidas: 0, toquesExterior: 0, capas: [] }
   };
 
   m.gris = {
     x: cx, y: cy, vx: 0, vy: 0, px: cx, py: cy,
     r0: C.RADIO_GRIS * u, r: C.RADIO_GRIS * u,
-    estado: 'espera',          // espera | azules | exterior | frenesi
+    estado: 'espera',
     fase: 0, periodo: C.PERIODO_BASE,
     comidas: 0, toques: 0,
     comprometido: false, dadoTirado: false, digiere: false,
     destello: 0, obstruido: false,
-    semilla: Math.random() * 100
+    semilla: Math.random() * 100,
+    asimilando: false,
+    progresoAsimilacion: 0,
+    colorAsimilado: [215, 215, 222]
   };
 
-  // azules, repartidas alrededor de la gris sin pegarse entre sí
   let intentos = 0;
   while (m.azules.length < C.N_AZULES && intentos++ < 3000) {
     const ang = Math.random() * Math.PI * 2;
@@ -301,7 +308,6 @@ function crearMundo() {
     m.azules.push({ hx, hy, x: hx, y: hy, vx: 0, vy: 0, r: C.RADIO_AZUL * u, vivo: true, aparece: 1, renace: -1, semilla: Math.random() * 100 });
   }
 
-  // círculo de partículas rojas
   for (let i = 0; i < C.N_ROJAS; i++) {
     const a = (i / C.N_ROJAS) * Math.PI * 2 + (Math.random() - 0.5) * 0.015;
     const R = C.RADIO_CIRCULO * u;
@@ -320,8 +326,8 @@ function nuevaLejana(m, desdeGris) {
   const C = CONFIG, u = m.u, g = m.gris;
   const R = C.RADIO_CIRCULO * u;
   const margen = 45 * u;
-  const minC = R * 1.45;                          // siempre fuera del círculo rojo
-  const libre = R + C.BANDA_ROJA * u + 25 * u;    // el camino directo no debe cruzar el círculo
+  const minC = R * 1.45;
+  const libre = R + C.BANDA_ROJA * u + 25 * u;
   const lado = Math.min(width, height);
   let mejor = null, mejorD = -1;
 
@@ -331,11 +337,11 @@ function nuevaLejana(m, desdeGris) {
     const dc = Math.hypot(x - m.cx, y - m.cy);
     if (dc < minC) continue;
     if (desdeGris) {
-      if (Math.hypot(x - g.x, y - g.y) < lado * 0.3) continue;       // "lejos" de donde está la gris
-      if (distSeg(m.cx, m.cy, g.x, g.y, x, y) < libre) continue;     // sin tener que cruzar el círculo
+      if (Math.hypot(x - g.x, y - g.y) < lado * 0.3) continue;
+      if (distSeg(m.cx, m.cy, g.x, g.y, x, y) < libre) continue;
       mejor = { x, y };
       break;
-    } else if (dc > mejorD) {                                          // la primera: lo más lejos posible
+    } else if (dc > mejorD) {
       mejorD = dc; mejor = { x, y };
     }
   }
@@ -356,7 +362,7 @@ function renacerAzul(m, b) {
     const rad = (C.ZONA_AZUL_MIN + Math.sqrt(Math.random()) * (C.ZONA_AZUL_MAX - C.ZONA_AZUL_MIN)) * u;
     const hx = m.cx + Math.cos(ang) * rad, hy = m.cy + Math.sin(ang) * rad;
     if (m.azules.some(o => o !== b && o.vivo && Math.hypot(o.hx - hx, o.hy - hy) < 26 * u)) continue;
-    if (Math.hypot(hx - g.x, hy - g.y) < 45 * u) continue;     // no nace encima de la gris
+    if (Math.hypot(hx - g.x, hy - g.y) < 45 * u) continue;
     b.hx = hx; b.hy = hy;
     break;
   }
@@ -373,13 +379,13 @@ function decidir(m, reintento) {
   const quedan = m.azules.some(b => b.vivo);
   if (!quedan && CONFIG.RENACER_SEGUNDOS < 0) {
     g.estado = 'exterior';
-    g.comprometido = true;          // ya no hay alternativa: no hay a qué renunciar
+    g.comprometido = true;
   } else if (Math.random() < CONFIG.PROB_AZUL_INICIAL) {
     g.estado = 'azules';
   } else {
     g.estado = 'exterior';
   }
-  if (!reintento) g.fase = 0.75;    // el primer impulso llega pronto
+  if (!reintento) g.fase = 0.75;
   evento(m, reintento ? 'recalcula' : 'decide', { hacia: g.estado });
 }
 
@@ -392,7 +398,7 @@ function objetivo(m) {
       const d = Math.hypot(b.x - g.x, b.y - g.y);
       if (d < md) { md = d; mejor = b; }
     }
-    return mejor;                   // puede ser null si todas están renaciendo
+    return mejor;
   }
   return m.lejana;
 }
@@ -414,10 +420,9 @@ function comer(m, b) {
   b.vivo = false;
   b.renace = C.RENACER_SEGUNDOS >= 0 ? m.t + C.RENACER_SEGUNDOS : -1;
   g.comidas++;
-  // cada azul alarga el periodo de forma exponencial: hacia la 3ª imagen casi no vuelve a comer
   g.periodo = Math.min(C.PERIODO_MAX, C.PERIODO_BASE * Math.exp(C.CRECIMIENTO_PERIODO * g.comidas));
-  g.fase = 0;                       // tiene que completar una oscilación entera antes del próximo impulso
-  g.digiere = true;                 // y hasta ese impulso no puede comer otra (así no se come dos de un solo impulso)
+  g.fase = 0;
+  g.digiere = true;
   g.r = g.r0 * (1 + C.CRECIMIENTO_RADIO * Math.min(g.comidas, 12));
   g.vx *= 0.25; g.vy *= 0.25;
   g.destello = 1;
@@ -435,14 +440,67 @@ function comer(m, b) {
 function tocarLejana(m) {
   const g = m.gris, C = CONFIG, L = m.lejana;
   g.toques++;
-  const f = Math.max(C.FACTOR_PERIODO_MIN, C.FACTOR_PERIODO_INICIAL - C.FACTOR_PERIODO_PASO * (g.toques - 1));
-  g.periodo = Math.max(C.PERIODO_MIN, g.periodo * f);
   if (g.estado !== 'frenesi') { g.estado = 'frenesi'; evento(m, 'frenesi'); }
   g.destello = 1;
   m.efectos.push({ x: L.x, y: L.y, t: 0, dur: 0.9, rmax: 60 * m.u, c: [255, 90, 220] });
   m.efectos.push({ x: L.x, y: L.y, t: 0.12, dur: 0.9, rmax: 42 * m.u, c: [90, 255, 200] });
-  evento(m, 'toca', { toques: g.toques, periodo: +g.periodo.toFixed(3) });
+  evento(m, 'toca', { toques: g.toques });
+  
+  // Avanzar en la construcción de la 5ta imagen exclusiva de la exterior
+  avanzarImagenExterior(m, L.x, L.y);
+
   m.lejana = nuevaLejana(m, true);
+}
+
+// Analizar la imagen completada para elegir el píxel central óptimo (lejos de blanco/negro)
+function iniciarAsimilacion(m, capa) {
+  const g = m.gris;
+  const o = imgExteriorObj;
+  if (!o || !o.ok) return;
+
+  const tempCv = document.createElement('canvas');
+  tempCv.width = o.w; tempCv.height = o.h;
+  const tctx = tempCv.getContext('2d');
+  tctx.drawImage(o.img, 0, 0);
+  const imgData = tctx.getImageData(0, 0, o.w, o.h);
+  const data = imgData.data;
+
+  let mejorX = o.w / 2, mejorY = o.h / 2, mejorScore = -1;
+  const cx = o.w / 2, cy = o.h / 2;
+
+  // Muestreo de píxeles buscando los requisitos
+  for (let i = 0; i < 400; i++) {
+    const rx = Math.floor(cx + (Math.random() - 0.5) * (o.w * 0.6));
+    const ry = Math.floor(cy + (Math.random() - 0.5) * (o.h * 0.6));
+    if (rx < 0 || rx >= o.w || ry < 0 || ry >= o.h) continue;
+
+    const idx = (ry * o.w + rx) * 4;
+    const r = data[idx], gCol = data[idx+1], b = data[idx+2];
+
+    const brilloPix = (r + gCol + b) / 3;
+    const saturacionExtrema = Math.abs(r - gCol) + Math.abs(gCol - b) + Math.abs(b - r);
+    const distanciaCentro = Math.hypot(rx - cx, ry - cy);
+
+    // Criterio: alejado de blanco (>240) y negro (<15), preferir zona centro
+    if (brilloPix > 15 && brilloPix < 240) {
+      const score = saturacionExtrema * 2 - (distanciaCentro / (o.w * 0.5)) * 50;
+      if (score > mejorScore) {
+        mejorScore = score;
+        mejorX = rx;
+        mejorY = ry;
+        g.colorAsimilado = [r, gCol, b];
+      }
+    }
+  }
+
+  const rImg = rectImagen(o.w, o.h);
+  const pantallaX = rImg.x + (mejorX / o.w) * rImg.w;
+  const pantallaY = rImg.y + (mejorY / o.h) * rImg.h;
+
+  g.asimilando = true;
+  g.progresoAsimilacion = 0;
+  capa.metaAsimilacion = { x: pantallaX, y: pantallaY };
+  evento(m, 'asimilacion_iniciada');
 }
 
 function actualizarGris(m, h) {
@@ -456,15 +514,30 @@ function actualizarGris(m, h) {
     return;
   }
 
+  // Si está asimilando la imagen creada por las exteriores
+  if (g.asimilando) {
+    const capaActual = m.arte.capas[m.arte.capas.length - 1];
+    if (capaActual && capaActual.metaAsimilacion) {
+      const meta = capaActual.metaAsimilacion;
+      g.x += (meta.x - g.x) * h * 3.5;
+      g.y += (meta.y - g.y) * h * 3.5;
+      g.progresoAsimilacion += h * 0.4;
+      g.r = Math.max(1, g.r0 * (1 - g.progresoAsimilacion));
+      if (g.progresoAsimilacion >= 1) {
+        // Al terminar, limpiar todas las demás partículas y reiniciar ciclo
+        reiniciar();
+      }
+    }
+    return;
+  }
+
   g.px = g.x; g.py = g.y;
   const obj = objetivo(m) || { x: g.x, y: g.y };
 
-  // oscilación interna: al cerrar cada ciclo, impulso
   g.fase += h / g.periodo;
   if (g.fase >= 1) { g.fase -= 1; darImpulso(m, obj); }
   g.destello = Math.max(0, g.destello - h * 4);
 
-  // guiado suave hacia el objetivo + temblor propio
   let dx = obj.x - g.x, dy = obj.y - g.y;
   const dist = Math.hypot(dx, dy) || 1; dx /= dist; dy /= dist;
   let guiado = g.estado === 'azules' ? C.GUIADO_AZUL * Math.pow(Math.min(1, C.PERIODO_BASE / g.periodo), 2)
@@ -475,19 +548,17 @@ function actualizarGris(m, h) {
   let ay = dy * guiado + ruido(m.t * 1.3, g.semilla + 19) * C.TEMBLOR * u;
   let gamma = C.ROZAMIENTO;
 
-  // el círculo rojo: frena y empuja en contra (salvo en frenesí, ya enfocada)
   if (g.estado !== 'frenesi') {
     const rx = g.x - m.cx, ry = g.y - m.cy;
     const dc = Math.hypot(rx, ry) || 1;
     const delta = dc - C.RADIO_CIRCULO * u;
     const banda = C.BANDA_ROJA * u;
     if (Math.abs(delta) < banda) {
-      const res = 1 - Math.abs(delta) / banda;       // 1 en la línea del círculo, 0 en los bordes
+      const res = 1 - Math.abs(delta) / banda;
       gamma += C.ROZAMIENTO_ANILLO * res;
       ax -= (rx / dc) * C.VIENTO_ANILLO * u * res;
       ay -= (ry / dc) * C.VIENTO_ANILLO * u * res;
 
-      // al llegar al círculo yendo hacia la exterior: ¿se rinde?
       if (g.estado === 'exterior' && !g.dadoTirado && !g.comprometido) {
         g.dadoTirado = true;
         if (Math.random() < C.PROB_RENDIRSE) {
@@ -502,7 +573,6 @@ function actualizarGris(m, h) {
     }
   }
 
-  // las azules estorban a quien va hacia la exterior
   g.obstruido = false;
   if (g.estado === 'exterior') {
     for (const b of m.azules) {
@@ -529,7 +599,6 @@ function actualizarGris(m, h) {
     if (g.obstruido) gamma += C.ROZAMIENTO_OBSTACULO;
   }
 
-  // integración
   g.vx += ax * h; g.vy += ay * h;
   const f = Math.exp(-gamma * h);
   g.vx *= f; g.vy *= f;
@@ -540,14 +609,12 @@ function actualizarGris(m, h) {
   if (v > vmax) { g.vx *= vmax / v; g.vy *= vmax / v; }
   g.x += g.vx * h; g.y += g.vy * h;
 
-  // bordes de pantalla (rebote suave)
   const mg = 20 * u;
   if (g.x < mg) { g.x = mg; g.vx = Math.abs(g.vx) * 0.3; }
   if (g.x > width - mg) { g.x = width - mg; g.vx = -Math.abs(g.vx) * 0.3; }
   if (g.y < mg) { g.y = mg; g.vy = Math.abs(g.vy) * 0.3; }
   if (g.y > height - mg) { g.y = height - mg; g.vy = -Math.abs(g.vy) * 0.3; }
 
-  // contacto con el objetivo
   if (g.estado === 'azules') {
     for (const b of m.azules) {
       if (!g.digiere && b.vivo && b.aparece > 0.5 && distSeg(b.x, b.y, g.px, g.py, g.x, g.y) < g.r + b.r) comer(m, b);
@@ -574,7 +641,7 @@ function actualizarRojas(m, h) {
     let ay = (p.hy - p.y) * 45 - p.vy * 8;
     const dx = p.x - g.x, dy = p.y - g.y;
     const d = Math.hypot(dx, dy) || 0.01;
-    if (d < infl) {                       // se aparta al paso de la gris
+    if (d < infl) {
       const k = (1 - d / infl);
       ax += (dx / d) * 1600 * u * k * k;
       ay += (dy / d) * 1600 * u * k * k;
@@ -606,7 +673,6 @@ function actualizarLejana(m, h) {
   L.ang += ruido(m.t * 0.15, L.semilla) * 0.6 * h;
   L.x += Math.cos(L.ang) * C.VEL_LEJANA * u * h;
   L.y += Math.sin(L.ang) * C.VEL_LEJANA * u * h;
-  // se queda fuera del círculo rojo y dentro de la pantalla
   const dx = L.x - m.cx, dy = L.y - m.cy;
   const d = Math.hypot(dx, dy) || 1;
   const minC = C.RADIO_CIRCULO * u * 1.45;
@@ -631,15 +697,14 @@ function actualizarMundo(m, dt) {
   }
   for (const e of m.efectos) e.t += dt;
   m.efectos = m.efectos.filter(e => e.t < e.dur);
-  // las imágenes borradas por completo se retiran
   m.arte.capas = m.arte.capas.filter(c => !(c.borrando && m.t - c.tBorra > CONFIG.IMAGEN_BORRADO + 2));
 }
 
 /* ===================== dibujo ===================== */
 
 let SPR = {};
-let M;            // el mundo
-let CP, CPctx;    // capa de partículas (aparte, para que las estelas no se mezclen con la imagen)
+let M;
+let CP, CPctx;
 
 function crearSprite(r, g, b) {
   const s = document.createElement('canvas');
@@ -655,7 +720,6 @@ function crearSprite(r, g, b) {
   return s;
 }
 
-// círculo blanco de borde suave: con él se "pinta" la máscara que revela la imagen
 function crearSpriteSuave() {
   const s = document.createElement('canvas');
   s.width = s.height = 64;
@@ -671,7 +735,7 @@ function crearSpriteSuave() {
 }
 
 function brillo(ctx, spr, x, y, radio, alpha) {
-  const s = radio * 4.4;            // el sprite tiene un halo de ~4x el radio del núcleo
+  const s = radio * 4.4;
   ctx.globalAlpha = clamp(alpha, 0, 1);
   ctx.drawImage(spr, x - s, y - s, s * 2, s * 2);
 }
@@ -696,27 +760,23 @@ function limpiarCapaParticulas() {
 function dibujarParticulas(m) {
   const ctx = CPctx, C = CONFIG, u = m.u, t = m.t;
 
-  // estela: se oscurece lo anterior en vez de borrar
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
   ctx.fillStyle = `rgba(0,0,0,${C.ESTELA})`;
   ctx.fillRect(0, 0, width, height);
   ctx.globalCompositeOperation = 'lighter';
 
-  // círculo rojo
   for (const p of m.rojas) {
     const exc = Math.hypot(p.x - p.hx, p.y - p.hy) / (18 * u);
     brillo(ctx, SPR.roja, p.x, p.y, C.RADIO_ROJA * u * (1 + Math.min(exc, 1) * 0.5), 0.5 + Math.min(0.5, exc));
   }
 
-  // azules
   for (const b of m.azules) {
     if (!b.vivo) continue;
     const pulso = 1 + 0.12 * Math.sin(t * 2 + b.semilla);
     brillo(ctx, SPR.azul, b.x, b.y, b.r * pulso, 0.9 * b.aparece);
   }
 
-  // multicolor lejana: tres canales (R, G, B) que se mezclan y giran => cambia de color
   const L = m.lejana;
   for (let k = 0; k < 3; k++) {
     const a = t * 0.7 + k * (Math.PI * 2 / 3);
@@ -725,7 +785,6 @@ function dibujarParticulas(m) {
     brillo(ctx, SPR.canal[k], L.x + ox, L.y + oy, L.r * (0.8 + 0.2 * intensidad), C.BRILLO_LEJANA * (0.35 + 0.65 * intensidad) * L.aparece);
   }
 
-  // gris: carga (crece despacio) y suelta (impulso)
   const g = m.gris;
   let rr = g.r, halo = 0.12;
   if (g.estado === 'espera') {
@@ -736,10 +795,21 @@ function dibujarParticulas(m) {
     rr = g.r * (1 + amp * carga) * (1 - 0.25 * g.destello);
     halo = 0.12 + 0.35 * carga;
   }
-  brillo(ctx, SPR.gris, g.x, g.y, rr * 2.4, halo);
-  brillo(ctx, SPR.gris, g.x, g.y, rr, 0.85 + 0.15 * g.destello);
 
-  // destellos de eventos (comer, tocar, rendirse)
+  // Pérdida progresiva de luz basada en las comidas acumuladas de azules
+  const factorLuz = Math.max(0.2, 1 - (g.comidas * 0.06));
+  
+  // Si está asimilando, se tiñe y toma el color del píxel seleccionado
+  if (g.asimilando) {
+    const cr = g.colorAsimilado[0], cg = g.colorAsimilado[1], cb = g.colorAsimilado[2];
+    if (!SPR.grisAsimilado) SPR.grisAsimilado = crearSprite(cr, cg, cb);
+    brillo(ctx, SPR.grisAsimilado, g.x, g.y, rr * 2.4, halo * factorLuz);
+    brillo(ctx, SPR.grisAsimilado, g.x, g.y, rr, (0.85 + 0.15 * g.destello) * factorLuz);
+  } else {
+    brillo(ctx, SPR.gris, g.x, g.y, rr * 2.4, halo * factorLuz);
+    brillo(ctx, SPR.gris, g.x, g.y, rr, (0.85 + 0.15 * g.destello) * factorLuz);
+  }
+
   ctx.lineWidth = 1.5;
   for (const e of m.efectos) {
     if (e.t < 0) continue;
@@ -756,9 +826,11 @@ function dibujarParticulas(m) {
   ctx.globalCompositeOperation = 'source-over';
 }
 
-// Pinta la máscara (un círculo suave por cada trocito ya aparecido) y recorta la imagen con ella
 function redibujarCapa(capa, t) {
-  const C = CONFIG, o = IMGS[capa.idx];
+  const C = CONFIG;
+  const o = capa.esExterior ? imgExteriorObj : IMGS[capa.idx];
+  if (!o || !o.img) return;
+
   if (!capa.cv) {
     const s = Math.min(1, 1280 / Math.max(o.w, o.h));
     capa.w = Math.round(o.w * s); capa.h = Math.round(o.h * s);
@@ -784,16 +856,28 @@ function redibujarCapa(capa, t) {
   c.globalCompositeOperation = 'destination-in';
   c.drawImage(capa.mk, 0, 0);
   c.globalCompositeOperation = 'source-over';
+
+  // Verificar si la capa exterior está completamente revelada para disparar la asimilación
+  if (capa.esExterior && !capa.completadaAsimilacion) {
+    let completado = true;
+    for (let i = 0; i < capa.N; i++) {
+      if (alfaCelda(capa, i, t) < 0.95) { completado = false; break; }
+    }
+    if (completado) {
+      capa.completadaAsimilacion = true;
+      iniciarAsimilacion(M, capa);
+    }
+  }
 }
 
 function dibujarImagenes(m, ctx) {
   for (const capa of m.arte.capas) {
-    const o = IMGS[capa.idx];
+    const o = capa.esExterior ? imgExteriorObj : IMGS[capa.idx];
     if (!o || !o.ok) continue;
     const animando = m.t < capa.finAnim + 0.1;
     if (capa.sucia || animando || capa.borrando) {
       redibujarCapa(capa, m.t);
-      if (!animando && !capa.borrando) capa.sucia = false;
+      if (!animando && !capa.borrando && !capa.esExterior) capa.sucia = false;
     }
     const r = rectImagen(capa.w, capa.h);
     ctx.globalAlpha = CONFIG.IMAGEN_OPACIDAD;
@@ -809,7 +893,7 @@ function componer(m) {
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, width, height);
   dibujarImagenes(m, ctx);
-  ctx.globalCompositeOperation = 'lighter';     // las partículas se suman encima de la imagen
+  ctx.globalCompositeOperation = 'lighter';
   ctx.drawImage(CP, 0, 0, width, height);
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
